@@ -1,6 +1,6 @@
 import flet as ft
 from datetime import datetime
-from database import init_db, add_task, get_tasks, delete_task
+from database import init_db, add_task, get_tasks, delete_task, clear_completed_tasks
 
 def main(page: ft.Page):
     page.title = "ToDo App"
@@ -14,11 +14,14 @@ def main(page: ft.Page):
     tasks_column = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO)
 
     def load_tasks():
-        """Обновление списка задач"""
         tasks_column.controls.clear()
         for task_id, task_text, created_at, completed in get_tasks():
+            checkbox = ft.Checkbox(value=bool(completed))
+            checkbox.on_change = lambda e, id=task_id, cb=checkbox: update_completed(id, cb.value)
+
             task_row = ft.Row(
                 [
+                    checkbox,
                     ft.Text(f"{created_at} - {task_text}", expand=True),
                     ft.IconButton(
                         icon=ft.Icons.DELETE,
@@ -30,6 +33,10 @@ def main(page: ft.Page):
             )
             tasks_column.controls.append(task_row)
         page.update()
+
+    def update_completed(task_id, value):
+        from database import update_task
+        update_task(task_id, completed=int(value))
 
     def add_new_task(e):
         task = task_input.value.strip()
@@ -51,13 +58,18 @@ def main(page: ft.Page):
         delete_task(task_id)
         load_tasks()
 
+    def clear_completed(e):
+        clear_completed_tasks()
+        load_tasks()
+
     add_btn = ft.ElevatedButton("Добавить", on_click=add_new_task)
+    clear_btn = ft.ElevatedButton("Очистить выполненные", on_click=clear_completed, bgcolor=ft.Colors.RED)
 
     page.add(
         ft.Text("📌 Мои задачи", size=22, weight=ft.FontWeight.BOLD),
         task_input,
         warning_text,
-        add_btn,
+        ft.Row([add_btn, clear_btn], spacing=10),
         ft.Divider(),
         tasks_column
     )
